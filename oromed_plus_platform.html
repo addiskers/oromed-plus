@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OroMed+ | Integrated Medicine Access & Citizen Health Platform</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root {
+  --teal:#1A7A6E;--teal-l:#23a89a;--teal-d:#0d4a44;
+  --blue:#0D3B6E;--blue-l:#1a5fa0;
+  --gold:#C9952A;--gold-l:#e8b445;
+  --purple:#7c3aed;--purple-l:#a855f7;
+  --green:#16a34a;--green-l:#22c55e;
+  --red:#dc2626;--orange:#ea580c;
+  --bg:#060d1f;--panel:#0b1628;--panel2:#0f1e35;--panel3:#142338;
+  --border:#1a2d48;--border2:#243c5e;
+  --text:#e2e8f0;--tm:#8098b5;--td:#3a5070;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+#hdr{height:54px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
+.hdr-logo{display:flex;align-items:center;gap:8px}
+.hdr-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--teal),var(--gold));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:white}
+.hdr-txt h1{font-size:15px;font-weight:800;letter-spacing:.5px;background:linear-gradient(90deg,var(--teal-l),var(--gold-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr-txt p{font-size:9.5px;color:var(--tm)}
+.hdr-divider{width:1px;height:30px;background:var(--border);margin:0 4px}
+.mode-pills{display:flex;gap:4px}
+.mode-pill{padding:5px 12px;font-size:11px;border-radius:20px;cursor:pointer;border:1px solid var(--border);color:var(--tm);transition:all .15s}
+.mode-pill.active{background:var(--teal);border-color:var(--teal);color:white;font-weight:600}
+.mode-pill:hover:not(.active){border-color:var(--border2);color:var(--text)}
+.hdr-spacer{flex:1}
+.hdr-stat{display:flex;flex-direction:column;align-items:center;padding:0 10px;border-left:1px solid var(--border)}
+.hdr-stat-val{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.hdr-stat-lbl{font-size:8.5px;color:var(--td);text-transform:uppercase;letter-spacing:.5px}
+#hdr-clock{font-size:11px;color:var(--tm);border-left:1px solid var(--border);padding-left:12px;font-variant-numeric:tabular-nums}
+
+/* VIEWS */
+#views{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.view{display:none;flex:1;overflow:hidden;flex-direction:column}
+.view.active{display:flex}
+
+/* ---- CITIZEN VIEW ---- */
+#v-citizen{background:var(--bg)}
+.citizen-layout{display:flex;flex:1;overflow:hidden}
+.citizen-sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.citizen-main{flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start}
+.citizen-main::-webkit-scrollbar{width:4px}
+.citizen-main::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* Citizen ID Card */
+.id-card{background:linear-gradient(135deg,var(--teal-d) 0%,var(--blue) 100%);border:1px solid var(--teal);border-radius:14px;padding:16px;margin:12px;position:relative;overflow:hidden}
+.id-card::before{content:'';position:absolute;right:-20px;top:-20px;width:80px;height:80px;background:rgba(255,255,255,0.05);border-radius:50%}
+.id-avatar{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px}
+.id-name{font-size:14px;font-weight:700;color:white}
+.id-num{font-size:10px;color:rgba(255,255,255,0.6);font-variant-numeric:tabular-nums;margin-top:2px}
+.id-row{display:flex;gap:8px;margin-top:8px}
+.id-chip{background:rgba(255,255,255,0.12);border-radius:5px;padding:3px 8px;font-size:10px;color:rgba(255,255,255,0.8)}
+.id-chip.gold{background:rgba(201,149,42,0.3);color:var(--gold-l)}
+.health-score{position:absolute;right:14px;top:14px;text-align:center}
+.hs-val{font-size:24px;font-weight:800;color:var(--teal-l)}
+.hs-lbl{font-size:8.5px;color:rgba(255,255,255,0.5)}
+
+/* Citizen nav */
+.c-nav-item{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;font-size:12px;color:var(--tm);border-left:3px solid transparent;transition:all .15s}
+.c-nav-item:hover{background:var(--panel2);color:var(--text)}
+.c-nav-item.active{background:var(--panel2);color:var(--teal-l);border-left-color:var(--teal)}
+.c-nav-section{padding:10px 14px 4px;font-size:9px;font-weight:700;color:var(--td);letter-spacing:1.5px;text-transform:uppercase}
+
+/* Cards */
+.card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.card-title{font-size:11px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.card.full{grid-column:span 2}
+.metric-row{display:flex;gap:8px;margin-bottom:10px}
+.met-box{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center}
+.met-val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.met-lbl{font-size:9px;color:var(--tm);margin-top:1px}
+.row-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:11.5px}
+.row-item:last-child{border-bottom:none}
+.ri-label{color:var(--tm)}
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:600}
+.b-green{background:#16a34a20;color:#22c55e}
+.b-amber{background:#ea580c20;color:#fb923c}
+.b-red{background:#dc262620;color:#f87171}
+.b-blue{background:#1a7a6e20;color:#23a89a}
+.b-purple{background:#7c3aed20;color:#a855f7}
+.b-gold{background:#c9952a20;color:#e8b445}
+
+/* Order form */
+.order-form{background:var(--panel3);border:1px solid var(--border2);border-radius:8px;padding:12px;margin-bottom:8px}
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.form-label{font-size:10.5px;color:var(--tm);width:100px;flex-shrink:0}
+.form-input{flex:1;background:var(--panel);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:5px 8px;font-size:11px}
+.form-input:focus{outline:none;border-color:var(--teal)}
+.btn{padding:6px 16px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;border:none;transition:all .15s}
+.btn-teal{background:var(--teal);color:white}
+.btn-teal:hover{background:var(--teal-l)}
+.btn-gold{background:var(--gold);color:black}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--tm)}
+.btn-outline:hover{border-color:var(--teal-l);color:var(--teal-l)}
+.btn-red{background:var(--red);color:white}
+
+/* Diagnostic file timeline */
+.timeline{position:relative;padding-left:18px}
+.timeline::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;padding-bottom:12px;font-size:11px}
+.tl-item::before{content:'';position:absolute;left:-17px;top:3px;width:8px;height:8px;border-radius:50%;background:var(--teal);border:2px solid var(--panel2)}
+.tl-date{font-size:9.5px;color:var(--td);margin-bottom:2px}
+.tl-title{font-weight:600;color:var(--text)}
+.tl-detail{color:var(--tm);margin-top:1px}
+
+/* ---- OPERATIONS VIEW ---- */
+#v-ops .ops-layout{display:flex;flex:1;overflow:hidden}
+#v-ops .ops-left{width:280px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#v-ops .ops-main{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-content:start}
+#v-ops .ops-main::-webkit-scrollbar{width:4px}
+#v-ops .ops-main::-webkit-scrollbar-thumb{background:var(--border2)}
+.ops-map{flex:1;min-height:200px}
+.ops-queue{overflow-y:auto;max-height:200px}
+.ops-queue::-webkit-scrollbar{width:3px}
+.ops-queue::-webkit-scrollbar-thumb{background:var(--border2)}
+.queue-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer;font-size:11px}
+.queue-item:hover{background:var(--panel2)}
+.qi-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.qi-text{flex:1}
+.qi-id{font-size:9px;color:var(--td)}
+.chart-wrap{position:relative;height:140px}
+.ops-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.ops-card.wide{grid-column:span 2}
+.ops-card.full{grid-column:span 3}
+.oc-title{font-size:10.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.5px}
+table.tbl th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--border);font-size:9.5px;font-weight:600;color:var(--td);text-transform:uppercase;letter-spacing:.4px}
+table.tbl td{padding:5px 6px;border-bottom:1px solid var(--border)}
+table.tbl tr:hover td{background:var(--panel)}
+.pr-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;width:60px;display:inline-block;vertical-align:middle;margin-right:4px}
+.pr-fill{height:100%;border-radius:3px}
+
+/* ---- GOVT VIEW ---- */
+#v-govt .govt-layout{display:flex;flex:1;overflow:hidden}
+#v-govt .govt-nav{width:200px;background:var(--panel);border-right:1px solid var(--border);padding:10px 0}
+#v-govt .govt-main{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-content:start}
+.govt-nav-item{padding:8px 14px;font-size:12px;cursor:pointer;color:var(--tm);border-left:3px solid transparent;display:flex;align-items:center;gap:7px}
+.govt-nav-item:hover{background:var(--panel2);color:var(--text)}
+.govt-nav-item.active{color:var(--teal-l);border-left-color:var(--teal);background:var(--panel2)}
+.kpi-big{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.kpi-big-val{font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.kpi-big-lbl{font-size:10px;color:var(--tm);margin-top:4px}
+.kpi-big-sub{font-size:9.5px;color:var(--td);margin-top:2px;display:flex;align-items:center;gap:4px}
+.trend-up{color:var(--green-l)}
+.trend-down{color:var(--red)}
+
+/* HEWASKY branding strip */
+.partner-strip{background:var(--panel3);border-top:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:16px;font-size:10px;color:var(--td);flex-shrink:0}
+.ps-logo{font-weight:700;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border2)}
+.ps-logo.h{color:var(--teal-l);border-color:var(--teal-d)}
+.ps-logo.o{color:var(--gold-l);border-color:var(--gold)40}
+.ps-logo.s{color:var(--purple-l);border-color:var(--purple)40}
+.ps-logo.a{color:var(--green-l);border-color:var(--green)40}
+
+/* Animation */
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fadein{animation:fadein .3s ease}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.blink{animation:blink 1.5s infinite}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-icon">OM+</div>
+    <div class="hdr-txt"><h1>OroMed+</h1><p>Integrated Medicine Access & Citizen Health Platform</p></div>
+  </div>
+  <div class="hdr-divider"></div>
+  <div class="mode-pills">
+    <div class="mode-pill active" onclick="setView('citizen')">👤 Citizen Portal</div>
+    <div class="mode-pill" onclick="setView('ops')">🏭 Operations Center</div>
+    <div class="mode-pill" onclick="setView('govt')">🏛 Government Dashboard</div>
+    <div class="mode-pill" onclick="setView('pharma')">💊 Pharma & Supply</div>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="hdr-stat"><div class="hdr-stat-val" style="color:var(--teal-l)" id="h-orders">2,847</div><div class="hdr-stat-lbl">Orders Today</div></div>
+  <div class="hdr-stat"><div class="hdr-stat-val" style="color:var(--green-l)" id="h-citizens">184K</div><div class="hdr-stat-lbl">Registered Citizens</div></div>
+  <div class="hdr-stat"><div class="hdr-stat-val" style="color:var(--gold-l)">68%</div><div class="hdr-stat-lbl">Cost Reduction</div></div>
+  <div class="hdr-stat"><div class="hdr-stat-val" style="color:var(--red)">267/100k</div><div class="hdr-stat-lbl">MMR Baseline</div></div>
+  <div id="hdr-clock"></div>
+</div>
+
+<!-- VIEWS CONTAINER -->
+<div id="views">
+
+  <!-- ===== CITIZEN PORTAL ===== -->
+  <div class="view active" id="v-citizen">
+    <div class="citizen-layout">
+      <!-- Citizen Sidebar -->
+      <div class="citizen-sidebar">
+        <div class="id-card">
+          <div class="health-score"><div class="hs-val">72</div><div class="hs-lbl">Health Score</div></div>
+          <div class="id-avatar">👩</div>
+          <div class="id-name">Fatuma Hassen</div>
+          <div class="id-num">ETH-ORM-ORO-2024-08847 | Jimma Zone</div>
+          <div class="id-row">
+            <div class="id-chip">Age 28</div>
+            <div class="id-chip">Female</div>
+            <div class="id-chip gold">🤰 Pregnant — 24wks</div>
+          </div>
+          <div style="margin-top:8px;font-size:9.5px;color:rgba(255,255,255,0.5)">Linked: NIN-ETH-00281773 | SkyPath ID: SP-4421</div>
+        </div>
+        <div class="c-nav-section">My Health</div>
+        <div class="c-nav-item active" onclick="setCitizenTab('overview')">📋 Health Overview</div>
+        <div class="c-nav-item" onclick="setCitizenTab('diagnostics')">🔬 Diagnostic File</div>
+        <div class="c-nav-item" onclick="setCitizenTab('prescriptions')">📝 Prescriptions</div>
+        <div class="c-nav-item" onclick="setCitizenTab('pregnancy')">🤰 Pregnancy Record</div>
+        <div class="c-nav-section">Medicine Access</div>
+        <div class="c-nav-item" onclick="setCitizenTab('order')">🛒 Order Medicines</div>
+        <div class="c-nav-item" onclick="setCitizenTab('nearme')">📍 Find OroMed Kiosk</div>
+        <div class="c-nav-item" onclick="setCitizenTab('history')">📦 Order History</div>
+        <div class="c-nav-section">Benefits & Insurance</div>
+        <div class="c-nav-item" onclick="setCitizenTab('benefits')">🎁 My Benefits</div>
+        <div class="c-nav-item" onclick="setCitizenTab('insurance')">🛡 Health Insurance</div>
+        <div class="c-nav-item" onclick="setCitizenTab('alwayson')">💬 AlwaysOn Health AI</div>
+        <div style="padding:10px;margin-top:auto">
+          <div style="font-size:9px;color:var(--td);line-height:1.6">
+            Powered by: HEWA Sky | Orbit Health | SkyQuest Labs<br>
+            In partnership with: Oromia Health Bureau<br>
+            <a href="https://hewasky.com" style="color:var(--teal-l)">hewasky.com</a> |
+            <a href="https://skyquestlabs.com" style="color:var(--teal-l)">skyquestlabs.com</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Citizen Main Content -->
+      <div class="citizen-main" id="citizen-content"><!-- filled by JS --></div>
+    </div>
+  </div>
+
+  <!-- ===== OPERATIONS CENTER ===== -->
+  <div class="view" id="v-ops">
+    <div class="ops-layout">
+      <div class="ops-left">
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--td);letter-spacing:1.5px;border-bottom:1px solid var(--border)">LIVE ORDER QUEUE</div>
+        <div class="ops-queue" id="order-queue"><!-- filled by JS --></div>
+        <div style="padding:8px 10px;font-size:9px;font-weight:700;color:var(--td);letter-spacing:1.5px;border-bottom:1px solid var(--border);border-top:1px solid var(--border)">DISPATCH MAP</div>
+        <div class="ops-map" id="ops-map"></div>
+      </div>
+      <div class="ops-main" id="ops-content"><!-- filled by JS --></div>
+    </div>
+  </div>
+
+  <!-- ===== GOVERNMENT DASHBOARD ===== -->
+  <div class="view" id="v-govt">
+    <div class="govt-layout">
+      <div class="govt-nav" id="govt-nav">
+        <div class="govt-nav-item active" onclick="setGovtTab('national')">🇪🇹 National Overview</div>
+        <div class="govt-nav-item" onclick="setGovtTab('supply')">📦 Supply Chain</div>
+        <div class="govt-nav-item" onclick="setGovtTab('disease')">🦠 Disease Surveillance</div>
+        <div class="govt-nav-item" onclick="setGovtTab('maternal')">🤱 MCH Performance</div>
+        <div class="govt-nav-item" onclick="setGovtTab('nutrition')">🌱 Nutrition</div>
+        <div class="govt-nav-item" onclick="setGovtTab('pandemic')">⚠️ Pandemic Readiness</div>
+        <div class="govt-nav-item" onclick="setGovtTab('youth')">👷 Youth Jobs</div>
+        <div class="govt-nav-item" onclick="setGovtTab('pharma_import')">🇮🇳 India Import Pipeline</div>
+      </div>
+      <div class="govt-main" id="govt-content"><!-- filled by JS --></div>
+    </div>
+  </div>
+
+  <!-- ===== PHARMA & SUPPLY ===== -->
+  <div class="view" id="v-pharma">
+    <div style="flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-content:start" id="pharma-content"><!-- filled by JS --></div>
+  </div>
+
+</div><!-- /views -->
+
+<!-- PARTNER STRIP -->
+<div class="partner-strip">
+  <span>Platform Partners:</span>
+  <span class="ps-logo h">HEWA SKY</span>
+  <span class="ps-logo o">Orbit Health</span>
+  <span class="ps-logo s">SkyQuest Labs</span>
+  <span class="ps-logo a">ABH Partners</span>
+  <span style="margin-left:4px">Oromia Health Bureau (OHB)</span>
+  <span style="margin-left:auto">Prototype v1.0 — OroMed+ Generic Medicine Access Network | Jan Aushadhi Model adapted for Ethiopia</span>
+  <span class="blink" style="color:var(--teal-l);font-size:10px">● Live Prototype</span>
+</div>
+
+<script>
+// ============================================================
+// DOMAIN DATA
+// ============================================================
+const CITIZEN = {
+  name:'Fatuma Hassen', age:28, gender:'Female', zone:'Jimma', woreda:'Kersa',
+  id:'ETH-ORM-ORO-2024-08847', nin:'NIN-ETH-00281773', skypath:'SP-4421',
+  pregnant:true, gestWeeks:24, riskLevel:'Medium', healthScore:72,
+  conditions:['Iron Deficiency Anaemia','Gestational Hypertension (mild)'],
+  allergies:['Penicillin'],
+  insurance:{scheme:'CBHI',status:'Active',balance:'ETB 3,200',expires:'Dec 2026',covered:['OPD','Medicines (generic)','Maternal','Emergency']},
+  benefits:{govtSubsidy:'ETB 450/month',maternalBonus:'ETB 1,200 (disbursed Q3 2026)',foodSupport:'School meal enrolled — child #1'},
+  diagnostics:[
+    {date:'12 Mar 2026',test:'SkyPath Vitals + Haemoglobin',result:'Hb 9.2 g/dL — Mild Anaemia',skyPath:true,provider:'SkyPath Node — Kersa HC'},
+    {date:'28 Feb 2026',test:'ANC Visit #3 — BP + Glucose',result:'BP 135/85 (elevated), BG 5.1 mmol/L',skyPath:true,provider:'SkyPath Node — Kersa HC'},
+    {date:'14 Feb 2026',test:'Ultrasound (Teleradiology)',result:'Fetal growth normal — 22wk appropriate',skyPath:true,provider:'SkyPath Tele-Radiology'},
+    {date:'02 Jan 2026',test:'Malaria RDT',result:'Negative',skyPath:false,provider:'Kersa Health Center'},
+    {date:'18 Nov 2025',test:'Ferritin + CBC',result:'Ferritin 8 ng/mL — Iron deficiency confirmed',skyPath:true,provider:'SkyPath Node — Kersa HC'}
+  ],
+  prescriptions:[
+    {date:'12 Mar 2026',drug:'Ferrous Sulfate 300mg',dose:'1 tab twice daily x 60 days',status:'Active',cost:'ETB 45 (via OroMed)',prescriber:'Dr. Abebe — Kersa HC'},
+    {date:'12 Mar 2026',drug:'Folic Acid 5mg',dose:'1 tab daily x 60 days',status:'Active',cost:'ETB 18 (via OroMed)',prescriber:'Dr. Abebe — Kersa HC'},
+    {date:'28 Feb 2026',drug:'Methyldopa 250mg',dose:'1 tab three times daily',status:'Active',cost:'ETB 62 (via OroMed)',prescriber:'Dr. Abebe — Kersa HC'}
+  ],
+  orders:[
+    {date:'15 Mar 2026',items:'Ferrous Sulfate x60, Folic Acid x60, ORS x5',total:'ETB 78',status:'Delivered',channel:'CMD Home Delivery'},
+    {date:'01 Mar 2026',items:'Methyldopa x90, Paracetamol x20',total:'ETB 95',status:'Delivered',channel:'OroMed Kiosk'},
+    {date:'15 Feb 2026',items:'Iron + Folic Acid combo x30',total:'ETB 42',status:'Delivered',channel:'CMD Home Delivery'}
+  ]
+};
+
+const OPS_ORDERS = [
+  {id:'ORD-8847',citizen:'Fatuma H.',item:'Ferrous Sulfate + Folic Acid',zone:'Jimma',status:'Dispatched',eta:'2h',type:'CMD'},
+  {id:'ORD-8846',citizen:'Kebede T.',item:'Metformin 500mg x60',zone:'Arsi',status:'Pending',eta:'4h',type:'Kiosk'},
+  {id:'ORD-8845',citizen:'Amina S.',item:'Cotrimoxazole + ORS',zone:'Borena',status:'Urgent',eta:'6h',type:'Mobile Unit'},
+  {id:'ORD-8844',citizen:'Girma B.',item:'Atenolol 50mg x30',zone:'W.Wellega',status:'Dispatched',eta:'3h',type:'CMD'},
+  {id:'ORD-8843',citizen:'Chaltu F.',item:'Ferrous Sulfate + ANC Kit',zone:'E.Hararghe',status:'Processing',eta:'5h',type:'CMD'},
+  {id:'ORD-8842',citizen:'Tadesse M.',item:'Insulin Glargine (cold chain)',zone:'E.Shewa',status:'Special',eta:'24h',type:'Cold Chain Truck'},
+  {id:'ORD-8841',citizen:'Sirage N.',item:'Salbutamol Inhaler x2',zone:'Jimma',status:'Pending',eta:'3h',type:'Kiosk'},
+  {id:'ORD-8840',citizen:'Hawiti R.',item:'Mebendazole + Zinc',zone:'Bale',status:'Dispatched',eta:'2h',type:'CMD'}
+];
+
+const MEDICINES = [
+  {name:'Ferrous Sulfate 300mg',generic:'Iron Supplement',stock:42800,reorder:5000,unit:0.75,hewaPrice:0.25,saving:67,category:'Maternal'},
+  {name:'Amoxicillin 500mg',generic:'Antibiotic',stock:18500,reorder:2000,unit:1.20,hewaPrice:0.42,saving:65,category:'Infections'},
+  {name:'Metformin 500mg',generic:'Diabetes',stock:31200,reorder:4000,unit:0.90,hewaPrice:0.31,saving:66,category:'NCD'},
+  {name:'ORS Sachets',generic:'Dehydration',stock:125000,reorder:10000,unit:0.30,hewaPrice:0.08,saving:73,category:'Diarrheal'},
+  {name:'Methyldopa 250mg',generic:'Antihypertensive',stock:8900,reorder:2000,unit:1.80,hewaPrice:0.55,saving:69,category:'Maternal'},
+  {name:'Folic Acid 5mg',generic:'Supplement',stock:88000,reorder:8000,unit:0.15,hewaPrice:0.04,saving:73,category:'Maternal'},
+  {name:'Cotrimoxazole 480mg',generic:'Antibiotic',stock:5200,reorder:3000,unit:0.95,hewaPrice:0.32,saving:66,category:'Infections'},
+  {name:'Zinc Sulfate 20mg',generic:'Diarrhea adjunct',stock:42000,reorder:5000,unit:0.40,hewaPrice:0.10,saving:75,category:'Peds'},
+  {name:'Mebendazole 100mg',generic:'Anthelmintic',stock:67000,reorder:8000,unit:0.20,hewaPrice:0.06,saving:70,category:'Peds'},
+  {name:'Atenolol 50mg',generic:'Antihypertensive',stock:12400,reorder:2000,unit:1.10,hewaPrice:0.36,saving:67,category:'NCD'},
+];
+
+const ZONES_DATA = [
+  {name:'West Wellega',pop:2850000,kiosks:5,cmds:15,orders_day:185,citizens:18200,jobs_created:38,malnut:24.1,mmr:310},
+  {name:'Jimma',pop:3200000,kiosks:5,cmds:18,orders_day:210,citizens:24500,jobs_created:42,malnut:19.8,mmr:260},
+  {name:'East Hararghe',pop:3850000,kiosks:3,cmds:12,orders_day:120,citizens:12800,jobs_created:28,malnut:23.4,mmr:300},
+  {name:'Borena',pop:1800000,kiosks:2,cmds:8,orders_day:68,citizens:5400,jobs_created:18,malnut:26.3,mmr:335},
+  {name:'Arsi',pop:3100000,kiosks:4,cmds:14,orders_day:158,citizens:19800,jobs_created:32,malnut:18.5,mmr:245},
+  {name:'Bale',pop:2600000,kiosks:3,cmds:11,orders_day:98,citizens:9800,jobs_created:24,malnut:22.7,mmr:295},
+  {name:'Guji',pop:1950000,kiosks:2,cmds:7,orders_day:55,citizens:4200,jobs_created:16,malnut:25.1,mmr:320},
+  {name:'East Wellega',pop:1980000,kiosks:3,cmds:10,orders_day:88,citizens:8900,jobs_created:22,malnut:21.3,mmr:285},
+];
+
+let chartInstances = {};
+function destroyChart(id){if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}}
+function makeChart(id,type,labels,datasets,opts={}){
+  destroyChart(id);
+  const ctx=document.getElementById(id)?.getContext('2d');
+  if(!ctx)return;
+  chartInstances[id]=new Chart(ctx,{type,data:{labels,datasets},options:{
+    responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    plugins:{legend:{display:opts.legend||false,labels:{color:'#8098b5',font:{size:9}}},
+             tooltip:{backgroundColor:'rgba(6,13,31,.95)',titleColor:'#e2e8f0',bodyColor:'#8098b5',borderColor:'#1a2d48',borderWidth:1}},
+    scales:type==='doughnut'||type==='radar'?{}:{
+      x:{grid:{color:'#1a2d48'},ticks:{color:'#8098b5',font:{size:8.5}},border:{color:'#1a2d48'}},
+      y:{grid:{color:'#1a2d48'},ticks:{color:'#8098b5',font:{size:8.5}},border:{color:'#1a2d48'},...(opts.y||{})}
+    },...(opts.extra||{})
+  }});
+}
+
+// ============================================================
+// CITIZEN PORTAL TABS
+// ============================================================
+let citizenTab = 'overview';
+function setCitizenTab(tab){
+  citizenTab=tab;
+  document.querySelectorAll('.c-nav-item').forEach(n=>n.classList.remove('active'));
+  const tabs=['overview','diagnostics','prescriptions','pregnancy','order','nearme','history','benefits','insurance','alwayson'];
+  document.querySelectorAll('.c-nav-item').forEach((n,i)=>{if(i-3===tabs.indexOf(tab)||i===tabs.indexOf(tab))n.classList.add('active')});
+  // simpler: just check text
+  document.querySelectorAll('.c-nav-item').forEach(n=>{
+    if(n.onclick&&n.onclick.toString().includes("'"+tab+"'"))n.classList.add('active');
+  });
+  renderCitizenContent();
+}
+
+function renderCitizenContent(){
+  const el=document.getElementById('citizen-content');
+  if(!el)return;
+  const tab=citizenTab;
+
+  if(tab==='overview'){
+    el.innerHTML=`
+    <div class="card fadein">
+      <div class="card-title">🩺 Current Health Summary</div>
+      <div class="metric-row">
+        <div class="met-box"><div class="met-val" style="color:var(--teal-l)">72</div><div class="met-lbl">Health Score</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--orange)">Medium</div><div class="met-lbl">Risk Level</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--gold-l)">24wks</div><div class="met-lbl">Pregnancy</div></div>
+      </div>
+      <div class="row-item"><div class="ri-label">Blood Pressure</div><div><span class="badge b-amber">135/85 mmHg (Elevated)</span></div></div>
+      <div class="row-item"><div class="ri-label">Haemoglobin</div><div><span class="badge b-amber">9.2 g/dL (Mild Anaemia)</span></div></div>
+      <div class="row-item"><div class="ri-label">Next ANC Visit</div><div><span class="badge b-blue">Due 26 Mar 2026</span></div></div>
+      <div class="row-item"><div class="ri-label">Active Prescriptions</div><div><span class="badge b-green">3 active</span></div></div>
+      <div class="row-item"><div class="ri-label">SkyPath Last Scan</div><div><span class="badge b-purple">12 Mar 2026</span></div></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">💊 Active Medicines (OroMed)</div>
+      ${CITIZEN.prescriptions.map(p=>`
+        <div class="row-item">
+          <div>
+            <div style="font-weight:600;font-size:12px">${p.drug}</div>
+            <div style="font-size:10px;color:var(--tm)">${p.dose}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--gold-l)">${p.cost}</div>
+            <span class="badge b-green">Active</span>
+          </div>
+        </div>
+      `).join('')}
+      <button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="setCitizenTab('order')">🛒 Reorder Now</button>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">🎁 Benefits & Insurance</div>
+      <div class="row-item"><div class="ri-label">Scheme</div><div><span class="badge b-gold">CBHI — Active</span></div></div>
+      <div class="row-item"><div class="ri-label">Insurance Balance</div><div style="font-weight:600;color:var(--green-l)">ETB 3,200</div></div>
+      <div class="row-item"><div class="ri-label">Govt Subsidy</div><div style="color:var(--teal-l)">ETB 450/month</div></div>
+      <div class="row-item"><div class="ri-label">Maternal Bonus</div><div><span class="badge b-gold">ETB 1,200 — Q3 2026</span></div></div>
+      <div class="row-item"><div class="ri-label">Nutrition Support</div><div><span class="badge b-green">School Meals Enrolled</span></div></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">📈 Health Vitals Trend (SkyPath)</div>
+      <div class="chart-wrap"><canvas id="ch-vitals"></canvas></div>
+    </div>
+    `;
+    setTimeout(()=>makeChart('ch-vitals','line',['Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'],[
+      {label:'Hb (g/dL)',data:[8.8,9.0,8.9,9.1,9.2],borderColor:'#23a89a',tension:.4,fill:false,pointRadius:4},
+      {label:'Sys BP',data:[122,128,130,135,135],borderColor:'#e84040',tension:.4,fill:false,pointRadius:4,yAxisID:'bp'}
+    ],{legend:true,extra:{scales:{x:{grid:{color:'#1a2d48'},ticks:{color:'#8098b5',font:{size:9}}},y:{grid:{color:'#1a2d48'},ticks:{color:'#8098b5',font:{size:9}}},bp:{position:'right',grid:{display:false},ticks:{color:'#e84040',font:{size:9}}}}}}),50);
+
+  } else if(tab==='diagnostics'){
+    el.innerHTML=`
+    <div class="card full fadein">
+      <div class="card-title">🔬 Citizen Diagnostic File — ID: ${CITIZEN.skypath}</div>
+      <div style="font-size:10px;color:var(--tm);margin-bottom:12px">All diagnostic records linked to Citizen ID ${CITIZEN.nin} | SkyQuest Labs SkyPath Platform</div>
+      <div class="timeline">
+        ${CITIZEN.diagnostics.map(d=>`
+          <div class="tl-item">
+            <div class="tl-date">${d.date} ${d.skyPath?'<span class="badge b-purple" style="font-size:8px">SkyPath ⚡</span>':''}</div>
+            <div class="tl-title">${d.test}</div>
+            <div class="tl-detail">${d.result}</div>
+            <div style="font-size:9.5px;color:var(--td);margin-top:1px">📍 ${d.provider}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">📊 Health Trend Analysis</div>
+      <div class="chart-wrap"><canvas id="ch-diag"></canvas></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">🔗 Data Linkages</div>
+      <div class="row-item"><div class="ri-label">National ID</div><div style="font-size:11px;font-weight:600">${CITIZEN.nin}</div></div>
+      <div class="row-item"><div class="ri-label">SkyPath ID</div><div style="font-size:11px;font-weight:600;color:var(--purple-l)">${CITIZEN.skypath}</div></div>
+      <div class="row-item"><div class="ri-label">OroMed ID</div><div style="font-size:11px">OM-JIM-08847</div></div>
+      <div class="row-item"><div class="ri-label">CBHI Number</div><div>CBHI-ORM-2024-5521</div></div>
+      <div class="row-item"><div class="ri-label">HEW Assignment</div><div>HEW-Kersa-07 (Sr. Aster)</div></div>
+      <div class="row-item"><div class="ri-label">DHIS2 Patient ID</div><div style="font-size:10px;color:var(--td)">ETH-DHIS-ORO-44821</div></div>
+    </div>
+    `;
+    setTimeout(()=>makeChart('ch-diag','line',['Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'],[
+      {label:'Hb g/dL',data:[8.8,9.0,8.9,9.1,9.2],borderColor:'#23a89a',tension:.4,fill:false,pointRadius:4},
+      {label:'Ferritin ng/mL',data:[8,null,null,null,10],borderColor:'#c9952a',tension:.4,fill:false,pointRadius:4,spanGaps:true}
+    ],{legend:true}),50);
+
+  } else if(tab==='order'){
+    el.innerHTML=`
+    <div class="card fadein">
+      <div class="card-title">🛒 Order Generic Medicines — OroMed</div>
+      <div style="font-size:10px;color:var(--teal-l);margin-bottom:10px">💊 HEWA Sky pharma export license (India) | 60-75% cheaper than private pharmacy</div>
+      <div class="order-form">
+        <div class="form-row"><div class="form-label">Search medicine</div><input class="form-input" type="text" placeholder="Type medicine name..." id="med-search" oninput="filterMeds()"></div>
+      </div>
+      <div id="med-list">
+        ${['Ferrous Sulfate 300mg','Folic Acid 5mg','Methyldopa 250mg','Amoxicillin 500mg','ORS Sachets','Paracetamol 500mg'].map((m,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11.5px">
+          <input type="checkbox" ${i<3?'checked':''} style="accent-color:var(--teal)">
+          <div style="flex:1">${m}</div>
+          <input type="number" value="${i<3?[60,60,90,30,10,20][i]:1}" min="1" max="180" style="width:50px;background:var(--panel);border:1px solid var(--border2);color:var(--text);padding:3px 5px;border-radius:4px;font-size:11px">
+          <div style="width:70px;text-align:right;color:var(--gold-l);font-size:11px">ETB ${[45,18,62,28,8,15][i]||20}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">📍 Delivery Options</div>
+      <div class="order-form">
+        <div class="form-row"><div class="form-label">Delivery method</div>
+          <select class="form-input">
+            <option>CMD Home Delivery (2-3 hours)</option>
+            <option>OroMed Kiosk Pickup (Kersa HC)</option>
+            <option>Mobile Unit Visit (scheduled)</option>
+          </select>
+        </div>
+        <div class="form-row"><div class="form-label">Payment</div>
+          <select class="form-input">
+            <option>CBHI Insurance (deduct from balance)</option>
+            <option>Telebirr Mobile Money</option>
+            <option>Cash on Delivery</option>
+          </select>
+        </div>
+        <div class="form-row"><div class="form-label">Prescription</div>
+          <select class="form-input">
+            <option>Auto-link from SkyPath (SP-4421)</option>
+            <option>Upload prescription photo</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--panel3);border:1px solid var(--teal-d);border-radius:8px;padding:10px;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Subtotal</span><span>ETB 125</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--green-l);margin-bottom:4px"><span>CBHI Insurance Cover</span><span>- ETB 80</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--green-l);margin-bottom:4px"><span>Govt Maternal Subsidy</span><span>- ETB 25</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;color:var(--teal-l)"><span>You Pay</span><span>ETB 20</span></div>
+        <div style="font-size:9.5px;color:var(--td);margin-top:4px">Saving ETB 340 vs private pharmacy (73% reduction)</div>
+      </div>
+      <button class="btn btn-teal" style="width:100%;margin-top:10px;padding:9px">✅ Place Order — Confirm & Track</button>
+    </div>
+    `;
+
+  } else if(tab==='benefits'){
+    el.innerHTML=`
+    <div class="card fadein">
+      <div class="card-title">🎁 My Benefits Package</div>
+      <div class="row-item"><div class="ri-label">CBHI Insurance</div><div><span class="badge b-gold">Active — ETB 3,200 balance</span></div></div>
+      <div class="row-item"><div class="ri-label">Govt Medicine Subsidy</div><div style="color:var(--teal-l);font-weight:600">ETB 450 / month</div></div>
+      <div class="row-item"><div class="ri-label">Maternal Health Bonus</div><div><span class="badge b-gold">ETB 1,200 — disbursed Q3</span></div></div>
+      <div class="row-item"><div class="ri-label">School Meals</div><div><span class="badge b-green">1 child enrolled (NutriConnect)</span></div></div>
+      <div class="row-item"><div class="ri-label">Free ANC Visits</div><div><span class="badge b-blue">4/4 covered by CBHI</span></div></div>
+      <div class="row-item"><div class="ri-label">Free SkyPath Diagnostics</div><div><span class="badge b-purple">3 sessions / quarter</span></div></div>
+      <div class="row-item"><div class="ri-label">AlwaysOn AI Health</div><div><span class="badge b-green">Unlimited WhatsApp access</span></div></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">🛡 CBHI Insurance Details</div>
+      <div class="row-item"><div class="ri-label">Scheme</div><div>Community-Based Health Insurance (CBHI)</div></div>
+      <div class="row-item"><div class="ri-label">Status</div><div><span class="badge b-green">Active</span></div></div>
+      <div class="row-item"><div class="ri-label">Balance</div><div style="color:var(--green-l);font-weight:700">ETB 3,200</div></div>
+      <div class="row-item"><div class="ri-label">Expiry</div><div>December 2026</div></div>
+      <div class="row-item"><div class="ri-label">Covered services</div><div style="font-size:10px">${CITIZEN.insurance.covered.join(' · ')}</div></div>
+      <div class="row-item"><div class="ri-label">Annual Savings</div><div style="color:var(--teal-l);font-weight:600">ETB ~8,400</div></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">📊 Benefit Utilisation</div>
+      <div class="chart-wrap"><canvas id="ch-ben"></canvas></div>
+    </div>
+    <div class="card fadein">
+      <div class="card-title">💬 AlwaysOn AI Health — WhatsApp Access</div>
+      <div style="background:var(--panel3);border-radius:8px;padding:10px;font-size:11px">
+        <div style="color:var(--td);margin-bottom:6px">Last session: 10 Mar 2026</div>
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid var(--teal)">
+          <div style="font-weight:600;font-size:11.5px;color:var(--teal-l)">Fatuma:</div>
+          <div style="color:var(--tm);margin-top:2px">"I have a headache and my legs are swollen — is this normal at 24 weeks?"</div>
+        </div>
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;border-left:3px solid var(--gold)">
+          <div style="font-weight:600;font-size:11.5px;color:var(--gold-l)">AlwaysOn AI:</div>
+          <div style="color:var(--tm);margin-top:2px">"Leg swelling and headaches at 24 weeks can be signs of elevated blood pressure. Based on your last BP reading (135/85), I recommend visiting the nearest SkyPath node today. Your HEW Sr. Aster has been notified."</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="alert('WhatsApp integration: send message to +251-9XX-OROMED')">💬 Open WhatsApp Chat</button>
+    </div>
+    `;
+    setTimeout(()=>makeChart('ch-ben','doughnut',['Medicines','ANC','Diagnostics','Remaining'],[{data:[28,22,12,38],backgroundColor:['rgba(26,122,110,.7)','rgba(232,64,80,.6)','rgba(124,58,237,.6)','rgba(30,60,90,.5)'],borderColor:'var(--panel)',borderWidth:2}],{legend:true,extra:{plugins:{legend:{display:true,position:'right'}}}}),50);
+
+  } else {
+    el.innerHTML=`<div class="card full fadein"><div class="card-title">Coming soon — ${tab}</div><div style="color:var(--tm);font-size:11px">This section is under development in the prototype.</div></div>`;
+  }
+}
+
+// ============================================================
+// OPERATIONS CENTER
+// ============================================================
+let opsMap;
+function renderOpsContent(){
+  // Queue
+  document.getElementById('order-queue').innerHTML = OPS_ORDERS.map(o=>`
+    <div class="queue-item">
+      <div class="qi-icon" style="background:${o.status==='Urgent'?'rgba(220,38,38,.2)':o.status==='Dispatched'?'rgba(22,163,74,.2)':'rgba(26,122,110,.2)'}">
+        ${o.status==='Urgent'?'🚨':o.status==='Dispatched'?'🚚':'⏳'}
+      </div>
+      <div class="qi-text">
+        <div style="font-weight:600;font-size:11px">${o.id} — ${o.citizen}</div>
+        <div style="font-size:9.5px;color:var(--tm)">${o.item}</div>
+        <div class="qi-id">${o.zone} | ${o.type} | ETA: ${o.eta}</div>
+      </div>
+      <span class="badge ${o.status==='Urgent'?'b-red':o.status==='Dispatched'?'b-green':o.status==='Special'?'b-gold':'b-amber'}" style="font-size:8.5px">${o.status}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('ops-content').innerHTML=`
+    <div class="ops-card fadein">
+      <div class="oc-title">📦 Today's Operations</div>
+      <div class="metric-row" style="margin-bottom:0">
+        <div class="met-box"><div class="met-val" style="color:var(--teal-l)">2,847</div><div class="met-lbl">Orders Received</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--green-l)">1,924</div><div class="met-lbl">Delivered</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--orange)">687</div><div class="met-lbl">In Transit</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--red)">236</div><div class="met-lbl">Pending</div></div>
+      </div>
+    </div>
+    <div class="ops-card fadein">
+      <div class="oc-title">👷 CMD Network</div>
+      <div class="metric-row" style="margin-bottom:0">
+        <div class="met-box"><div class="met-val" style="color:var(--gold-l)">247</div><div class="met-lbl">Active CMDs</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--teal-l)">89%</div><div class="met-lbl">On-time Rate</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--green-l)">ETB 890</div><div class="met-lbl">Avg CMD Earning/day</div></div>
+        <div class="met-box"><div class="met-val" style="color:var(--text)">45km</div><div class="met-lbl">Max route range</div></div>
+      </div>
+    </div>
+    <div class="ops-card fadein">
+      <div class="oc-title">🏭 Inventory Alerts</div>
+      ${MEDICINES.filter((_,i)=>i<5).map(m=>`
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:10.5px">
+          <div style="flex:1">${m.name}</div>
+          <div class="pr-bar"><div class="pr-fill" style="width:${Math.min(m.stock/50000*100,100)}%;background:${m.stock<10000?'#dc2626':m.stock<20000?'#ea580c':'#16a34a'}"></div></div>
+          <div style="width:50px;text-align:right;font-size:10px;color:${m.stock<10000?'var(--red)':'var(--tm)'}">${(m.stock/1000).toFixed(0)}K</div>
+          ${m.stock<m.reorder?'<span class="badge b-red" style="font-size:8px">REORDER</span>':''}
+        </div>
+      `).join('')}
+    </div>
+    <div class="ops-card wide fadein">
+      <div class="oc-title">📈 Daily Order Volume by Zone</div>
+      <div class="chart-wrap"><canvas id="ch-ops-vol"></canvas></div>
+    </div>
+    <div class="ops-card fadein">
+      <div class="oc-title">📊 Order Types</div>
+      <div class="chart-wrap"><canvas id="ch-ops-type"></canvas></div>
+    </div>
+    <div class="ops-card wide fadein">
+      <div class="oc-title">🚀 Kiosk Performance — All Zones</div>
+      <table class="tbl">
+        <tr><th>Zone</th><th>Kiosks</th><th>CMDs</th><th>Orders/Day</th><th>Citizens</th><th>Fill Rate</th><th>Status</th></tr>
+        ${ZONES_DATA.map(z=>`<tr>
+          <td>${z.name}</td><td>${z.kiosks}</td><td>${z.cmds}</td><td>${z.orders_day}</td>
+          <td>${z.citizens.toLocaleString()}</td>
+          <td><div class="pr-bar"><div class="pr-fill" style="width:${85+Math.random()*12}%;background:var(--teal)"></div></div>${(85+Math.random()*12).toFixed(0)}%</td>
+          <td><span class="badge ${z.kiosks>=4?'b-green':'b-amber'}">${z.kiosks>=4?'Optimal':'Scaling'}</span></td>
+        </tr>`).join('')}
+      </table>
+    </div>
+  `;
+  setTimeout(()=>{
+    makeChart('ch-ops-vol','bar',ZONES_DATA.map(z=>z.name.split(' ')[0]),[{
+      label:'Orders/Day',data:ZONES_DATA.map(z=>z.orders_day),
+      backgroundColor:'rgba(26,122,110,.65)',borderRadius:3
+    }]);
+    makeChart('ch-ops-type','doughnut',['CMD Delivery','Kiosk Pickup','Mobile Unit','Cold Chain'],[{
+      data:[62,24,10,4],backgroundColor:['rgba(26,122,110,.7)','rgba(201,149,42,.7)','rgba(124,58,237,.6)','rgba(22,163,74,.6)'],borderColor:'var(--panel)',borderWidth:2
+    }],{legend:true,extra:{plugins:{legend:{display:true,position:'right'}}}});
+  },80);
+
+  // Ops dispatch map
+  if(!opsMap){
+    opsMap=L.map('ops-map',{zoomControl:false,attributionControl:false}).setView([7.5,38.5],5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'}).addTo(opsMap);
+    const coords=[[9.3,35],[8.5,36.5],[7.7,36.8],[7.55,39.5],[6.5,40],[4.5,38.5],[5.4,38.8],[8.5,41.5]];
+    coords.forEach((c,i)=>{
+      const col=ZONES_DATA[i]?.kiosks>=4?'#1a7a6e':'#c9952a';
+      L.circleMarker(c,{radius:6,fillColor:col,color:'white',weight:1,fillOpacity:.8}).addTo(opsMap)
+       .bindPopup(`<b style="color:${col}">${ZONES_DATA[i]?.name}</b><br>${ZONES_DATA[i]?.orders_day} orders today`);
+    });
+  }
+}
+
+// ============================================================
+// GOVERNMENT DASHBOARD
+// ============================================================
+let govtTab='national';
+function setGovtTab(tab){
+  govtTab=tab;
+  document.querySelectorAll('.govt-nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.govt-nav-item').forEach(n=>{if(n.onclick?.toString().includes("'"+tab+"'"))n.classList.add('active')});
+  renderGovtContent();
+}
+
+function renderGovtContent(){
+  const el=document.getElementById('govt-content');
+  const tab=govtTab;
+
+  if(tab==='national'){
+    el.innerHTML=`
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--teal-l)" id="g-kpi-mmr">267</div><div class="kpi-big-lbl">Maternal Mortality Ratio (baseline)</div><div class="kpi-big-sub"><span class="trend-down">▲ per 100,000 live births</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--orange)">20.7%</div><div class="kpi-big-lbl">Acute Malnutrition (U5) — Oromia</div><div class="kpi-big-sub"><span class="trend-down">▲ Emergency threshold: 15%</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--red)">21.6%</div><div class="kpi-big-lbl">ANC 4+ Coverage — Oromia</div><div class="kpi-big-sub"><span class="trend-down">▲ Target: 60%+ by 2030</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--green-l)">184K</div><div class="kpi-big-lbl">Citizens Registered (OroMed+)</div><div class="kpi-big-sub"><span class="trend-up">▲ +2,400 this week</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--gold-l)">ETB 8.4M</div><div class="kpi-big-lbl">Monthly Consumer Savings</div><div class="kpi-big-sub"><span class="trend-up">▲ via OroMed generic pricing</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--purple-l)">247</div><div class="kpi-big-lbl">Youth Jobs Created (CMD network)</div><div class="kpi-big-sub"><span class="trend-up">▲ Target 2,000 by 2028</span></div></div>
+      <div class="ops-card full fadein" style="background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px">
+        <div class="oc-title">📊 Health Indicator Trends — Ethiopia (Live WHO + World Bank)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="chart-wrap"><canvas id="ch-govt-mmr"></canvas></div>
+          <div class="chart-wrap"><canvas id="ch-govt-nutri"></canvas></div>
+        </div>
+      </div>
+    `;
+    setTimeout(()=>{
+      makeChart('ch-govt-mmr','line',['2000','2005','2010','2015','2019','2020','2026\n(proj)'],[
+        {label:'MMR Ethiopia',data:[871,724,562,401,300,267,240],borderColor:'#e84040',tension:.3,fill:false,pointRadius:3},
+        {label:'CONNECT+ Target',data:[null,null,null,null,null,267,180],borderColor:'#1a7a6e',borderDash:[5,5],tension:.3,fill:false,pointRadius:3}
+      ],{legend:true});
+      makeChart('ch-govt-nutri','line',['2005','2010','2014','2016','2019','2022','2026\n(proj)'],[
+        {label:'Stunting %',data:[55.7,51.8,50.4,42.6,37.0,36.8,32],borderColor:'#e8892a',tension:.3,fill:false,pointRadius:3},
+        {label:'Wasting %',data:[12.3,9.7,9.0,8.0,7.2,7.0,5.5],borderColor:'#e84040',tension:.3,fill:false,pointRadius:3}
+      ],{legend:true});
+    },80);
+
+  } else if(tab==='supply'){
+    el.innerHTML=`
+      <div class="ops-card fadein"><div class="oc-title">🇮🇳 HEWA Sky India Import Pipeline</div>
+        <div style="font-size:10px;color:var(--teal-l);margin-bottom:8px">HEWA Sky pharma export licence — sourcing WHO-EML generics from India at Jan Aushadhi pricing</div>
+        <div class="row-item"><div class="ri-label">Active import orders</div><div style="color:var(--gold-l);font-weight:600">12 SKUs in transit</div></div>
+        <div class="row-item"><div class="ri-label">Lead time (India→Ethiopia)</div><div>18-22 days via Djibouti</div></div>
+        <div class="row-item"><div class="ri-label">EFDA clearance status</div><div><span class="badge b-green">18 approved formulary drugs</span></div></div>
+        <div class="row-item"><div class="ri-label">Price vs local market</div><div style="color:var(--green-l)">42-75% cheaper</div></div>
+        <div class="row-item"><div class="ri-label">Quality certification</div><div><span class="badge b-blue">WHO-GMP | ISO 9001</span></div></div>
+      </div>
+      <div class="ops-card wide fadein"><div class="oc-title">📦 Inventory Status — All Medicines</div>
+        <table class="tbl">
+          <tr><th>Medicine</th><th>Category</th><th>Stock</th><th>Local Price</th><th>HEWA Price</th><th>Saving</th><th>Status</th></tr>
+          ${MEDICINES.map(m=>`<tr>
+            <td>${m.name}</td><td>${m.category}</td>
+            <td style="color:${m.stock<m.reorder?'var(--red)':'var(--text)'}">${m.stock.toLocaleString()}</td>
+            <td>ETB ${m.unit.toFixed(2)}/tab</td>
+            <td style="color:var(--green-l)">ETB ${m.hewaPrice.toFixed(2)}/tab</td>
+            <td style="color:var(--gold-l);font-weight:700">${m.saving}%</td>
+            <td><span class="badge ${m.stock<m.reorder?'b-red':m.stock<m.reorder*2?'b-amber':'b-green'}">${m.stock<m.reorder?'⚠️ Reorder':m.stock<m.reorder*2?'Low':'OK'}</span></td>
+          </tr>`).join('')}
+        </table>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">📈 Supply Chain Resilience Score</div>
+        <div class="chart-wrap"><canvas id="ch-supply"></canvas></div>
+      </div>
+    `;
+    setTimeout(()=>makeChart('ch-supply','radar',['Availability','Quality','Affordability','Speed','Coverage','Resilience'],[
+      {label:'Current',data:[60,82,40,55,35,48],borderColor:'#e84040',backgroundColor:'rgba(232,64,64,.15)',pointRadius:3},
+      {label:'OroMed+ Target',data:[92,95,88,78,85,87],borderColor:'#1a7a6e',backgroundColor:'rgba(26,122,110,.15)',pointRadius:3}
+    ],{legend:true,extra:{scales:{r:{grid:{color:'#1a2d48'},ticks:{display:false},pointLabels:{color:'#8098b5',font:{size:9}}}}}}),80);
+
+  } else if(tab==='disease'){
+    el.innerHTML=`
+      <div class="ops-card fadein"><div class="oc-title">🦠 Disease Surveillance — Oromia Zones</div>
+        <div style="font-size:10px;color:var(--tm);margin-bottom:8px">SkyQuest Labs Geo Disease Pattern Platform — real-time by village/district/zone</div>
+        <table class="tbl">
+          <tr><th>Zone</th><th>Malaria/1000</th><th>TB/100k</th><th>Anaemia %</th><th>Diarrhea (U5)</th><th>Alert Level</th></tr>
+          ${ZONES_DATA.map(z=>`<tr>
+            <td>${z.name.split(' ')[0]}</td>
+            <td style="color:${z.name==='Borena'?'var(--red)':'var(--text)'}">${Math.round(z.malnut*2.1)}</td>
+            <td>${Math.round(z.mmr*0.55)}</td>
+            <td style="color:${z.malnut>22?'var(--orange)':'var(--text)'}">${(z.malnut*1.42).toFixed(1)}%</td>
+            <td>${Math.round(z.malnut*1.8)}%</td>
+            <td><span class="badge ${z.malnut>=25?'b-red':z.malnut>=20?'b-amber':'b-blue'}">${z.malnut>=25?'🔴 Emergency':z.malnut>=20?'🟡 Alert':'🟢 Routine'}</span></td>
+          </tr>`).join('')}
+        </table>
+      </div>
+      <div class="ops-card wide fadein"><div class="oc-title">📊 Disease Trend by Quarter</div>
+        <div class="chart-wrap" style="height:170px"><canvas id="ch-disease"></canvas></div>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">⚠️ Outbreak Risk Index (AI — SkyPath)</div>
+        <div class="chart-wrap"><canvas id="ch-outbreak"></canvas></div>
+      </div>
+    `;
+    setTimeout(()=>{
+      makeChart('ch-disease','line',['Q1 2025','Q2 2025','Q3 2025','Q4 2025','Q1 2026'],[
+        {label:'Malaria cases',data:[8200,9400,11200,7800,8900],borderColor:'#dc2626',tension:.4,fill:false,pointRadius:3},
+        {label:'Diarrhea (U5)',data:[5100,6200,5800,4900,5400],borderColor:'#e8892a',tension:.4,fill:false,pointRadius:3},
+        {label:'ARI cases',data:[4200,3900,4100,5200,4600],borderColor:'#9b4dca',tension:.4,fill:false,pointRadius:3}
+      ],{legend:true});
+      makeChart('ch-outbreak','doughnut',['Low','Moderate','High','Emergency'],[{
+        data:[45,32,18,5],backgroundColor:['rgba(22,163,74,.7)','rgba(234,88,12,.7)','rgba(220,38,38,.7)','rgba(80,20,20,.9)'],borderColor:'var(--panel)',borderWidth:2
+      }],{legend:true,extra:{plugins:{legend:{display:true,position:'right'}}}});
+    },80);
+
+  } else if(tab==='pandemic'){
+    el.innerHTML=`
+      <div class="ops-card fadein"><div class="oc-title">🛡 Pandemic Preparedness Score</div>
+        <div class="metric-row" style="margin-bottom:0">
+          <div class="met-box"><div class="met-val" style="color:var(--gold-l)">62/100</div><div class="met-lbl">IHR Score</div></div>
+          <div class="met-box"><div class="met-val" style="color:var(--orange)">48/100</div><div class="met-lbl">GHS Index</div></div>
+          <div class="met-box"><div class="met-val" style="color:var(--teal-l)">87%</div><div class="met-lbl">SPAR 2024</div></div>
+        </div>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">⚡ OroMed+ Pandemic Role</div>
+        <div class="row-item"><div class="ri-label">Emergency stockpile capacity</div><div style="color:var(--teal-l)">30-day buffer (14 essential drugs)</div></div>
+        <div class="row-item"><div class="ri-label">Rapid distribution network</div><div>247 CMDs deployable in 24h</div></div>
+        <div class="row-item"><div class="ri-label">SkyPath outbreak detection</div><div><span class="badge b-purple">Real-time geo pattern alerts</span></div></div>
+        <div class="row-item"><div class="ri-label">AlwaysOn symptom surveillance</div><div><span class="badge b-green">247 sessions/day passively monitored</span></div></div>
+        <div class="row-item"><div class="ri-label">Cold chain coverage</div><div><span class="badge b-amber">3 pilot zones (expanding)</span></div></div>
+        <div class="row-item"><div class="ri-label">Community alert speed</div><div style="color:var(--green-l)">WhatsApp broadcast &lt;2 minutes</div></div>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">📊 IHR Compliance Progress</div>
+        <div class="chart-wrap"><canvas id="ch-pandemic"></canvas></div>
+      </div>
+    `;
+    setTimeout(()=>makeChart('ch-pandemic','radar',['Detect','Prevent','Respond','Recover','Finance','Governance'],[
+      {label:'Current 2026',data:[55,62,48,41,35,58],borderColor:'#ea580c',backgroundColor:'rgba(234,88,12,.15)',pointRadius:3},
+      {label:'OroMed+ 2028 Proj.',data:[82,80,75,72,68,80],borderColor:'#1a7a6e',backgroundColor:'rgba(26,122,110,.15)',pointRadius:3}
+    ],{legend:true,extra:{scales:{r:{grid:{color:'#1a2d48'},ticks:{display:false},pointLabels:{color:'#8098b5',font:{size:9}}}}}}),80);
+
+  } else if(tab==='youth'){
+    el.innerHTML=`
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--gold-l)">247</div><div class="kpi-big-lbl">Community Medicine Distributors (CMDs) hired</div><div class="kpi-big-sub"><span class="trend-up">▲ Youth 18-35, avg. ETB 850/day earnings</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--teal-l)">ETB 890</div><div class="kpi-big-lbl">Average daily CMD earnings</div><div class="kpi-big-sub"><span class="trend-up">▲ 3.8× national daily wage</span></div></div>
+      <div class="kpi-big fadein"><div class="kpi-big-val" style="color:var(--green-l)">2,000</div><div class="kpi-big-lbl">CMD target by 2028 (all Oromia)</div><div class="kpi-big-sub"><span class="trend-up">▲ +18,000 at national scale by 2030</span></div></div>
+      <div class="ops-card wide fadein"><div class="oc-title">👷 Youth Engagement Model — CMD Network</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div class="row-item"><div class="ri-label">Minimum age</div><div>18 years</div></div>
+            <div class="row-item"><div class="ri-label">Training duration</div><div>2 weeks (OHB certified)</div></div>
+            <div class="row-item"><div class="ri-label">Equipment provided</div><div>Motorcycle + SkyPath kit + tablet</div></div>
+            <div class="row-item"><div class="ri-label">Per-delivery commission</div><div style="color:var(--gold-l)">ETB 35-85 / delivery</div></div>
+            <div class="row-item"><div class="ri-label">Monthly salary guarantee</div><div>ETB 4,200 base</div></div>
+            <div class="row-item"><div class="ri-label">Route assignment</div><div>5-10 kebeles (GPS optimised)</div></div>
+            <div class="row-item"><div class="ri-label">Career path</div><div>CMD → Kiosk Manager → Zone Supervisor</div></div>
+          </div>
+          <div class="chart-wrap"><canvas id="ch-youth"></canvas></div>
+        </div>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">📍 CMD Distribution by Zone</div>
+        <div class="chart-wrap"><canvas id="ch-cmd-zone"></canvas></div>
+      </div>
+    `;
+    setTimeout(()=>{
+      makeChart('ch-youth','doughnut',['Active CMDs','Kiosk Managers','Supervisors','Trainees'],[{
+        data:[247,45,12,38],backgroundColor:['rgba(201,149,42,.7)','rgba(26,122,110,.7)','rgba(124,58,237,.6)','rgba(22,163,74,.5)'],borderColor:'var(--panel)',borderWidth:2
+      }],{legend:true,extra:{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:9}}}}}});
+      makeChart('ch-cmd-zone','bar',ZONES_DATA.map(z=>z.name.split(' ')[0]),
+        [{label:'CMDs',data:ZONES_DATA.map(z=>z.cmds),backgroundColor:'rgba(201,149,42,.65)',borderRadius:3},
+         {label:'Target 2028',data:ZONES_DATA.map(z=>z.cmds*4),backgroundColor:'rgba(26,122,110,.3)',borderRadius:3}],
+        {legend:true});
+    },80);
+
+  } else if(tab==='pharma_import'){
+    el.innerHTML=`
+      <div class="ops-card fadein"><div class="oc-title">🇮🇳 HEWA Sky India Pharma Export Pipeline</div>
+        <div style="font-size:10.5px;color:var(--teal-l);margin-bottom:10px">HEWA Sky (hewasky.com) holds pharma export license for WHO-EML generics from India to Ethiopia/Africa</div>
+        <div class="row-item"><div class="ri-label">License type</div><div><span class="badge b-gold">WHO-GMP Export License</span></div></div>
+        <div class="row-item"><div class="ri-label">Approved source clusters</div><div>Gujarat, Hyderabad, Mumbai pharma SEZs</div></div>
+        <div class="row-item"><div class="ri-label">Jan Aushadhi integration</div><div>PMBJP approved generic formulary adapted</div></div>
+        <div class="row-item"><div class="ri-label">EFDA Ethiopia approval</div><div><span class="badge b-green">18 drugs cleared, 42 pending</span></div></div>
+        <div class="row-item"><div class="ri-label">Djibouti port partner</div><div>DP World + local clearing agent</div></div>
+        <div class="row-item"><div class="ri-label">Cold chain in India</div><div><span class="badge b-blue">Maintained end-to-end</span></div></div>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">📦 Active Import Orders</div>
+        <table class="tbl">
+          <tr><th>Medicine</th><th>Source</th><th>Qty (tabs)</th><th>Price (/tab)</th><th>ETA</th><th>Status</th></tr>
+          ${MEDICINES.slice(0,7).map(m=>`<tr>
+            <td>${m.name}</td>
+            <td>${['Gujarat','Hyderabad','Mumbai','Ahmedabad','Pune'][Math.floor(Math.random()*5)]}</td>
+            <td>${(Math.random()*200000+50000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</td>
+            <td style="color:var(--green-l)">INR ${(m.hewaPrice*4.5).toFixed(2)}</td>
+            <td>${Math.floor(Math.random()*10+12)} days</td>
+            <td><span class="badge ${['b-gold','b-blue','b-green','b-amber'][Math.floor(Math.random()*4)]}">${['In Transit','Customs','Cleared','Manufacturing'][Math.floor(Math.random()*4)]}</span></td>
+          </tr>`).join('')}
+        </table>
+      </div>
+      <div class="ops-card fadein"><div class="oc-title">💰 India→Ethiopia Price Comparison</div>
+        <div class="chart-wrap"><canvas id="ch-india-price"></canvas></div>
+      </div>
+    `;
+    setTimeout(()=>makeChart('ch-india-price','bar',MEDICINES.slice(0,6).map(m=>m.name.split(' ')[0]),[
+      {label:'Ethiopia Private (ETB)',data:MEDICINES.slice(0,6).map(m=>m.unit),backgroundColor:'rgba(220,38,38,.6)',borderRadius:2},
+      {label:'HEWA Import (ETB)',data:MEDICINES.slice(0,6).map(m=>m.hewaPrice),backgroundColor:'rgba(26,122,110,.7)',borderRadius:2}
+    ],{legend:true}),80);
+
+  } else {
+    el.innerHTML=`<div class="kpi-big full fadein"><div class="kpi-big-lbl" style="font-size:14px;margin-bottom:8px">Tab: ${tab}</div><div style="color:var(--tm);font-size:11px">This dashboard section is in development.</div></div>`;
+  }
+}
+
+// ============================================================
+// PHARMA VIEW
+// ============================================================
+function renderPharmaContent(){
+  document.getElementById('pharma-content').innerHTML=`
+    <div class="ops-card fadein"><div class="oc-title">💊 Generic Formulary — OroMed+</div>
+      <div style="font-size:10px;color:var(--teal-l);margin-bottom:8px">200-drug WHO-EML aligned formulary | HEWA Sky India sourcing | EFDA certified</div>
+      <table class="tbl">
+        <tr><th>Medicine</th><th>Category</th><th>Stock</th><th>Local ₹ equiv</th><th>HEWA Price</th><th>Saving</th></tr>
+        ${MEDICINES.map(m=>`<tr>
+          <td>${m.name}</td><td>${m.category}</td>
+          <td style="color:${m.stock<m.reorder?'var(--red)':'var(--text)'}">${m.stock.toLocaleString()}</td>
+          <td>ETB ${m.unit.toFixed(2)}</td>
+          <td style="color:var(--green-l)">ETB ${m.hewaPrice.toFixed(2)}</td>
+          <td><span class="badge b-gold">${m.saving}% ↓</span></td>
+        </tr>`).join('')}
+      </table>
+    </div>
+    <div class="ops-card fadein"><div class="oc-title">🏭 Sourcing Architecture</div>
+      <div style="font-size:10.5px;color:var(--tm);margin-bottom:10px">HEWA Sky pharma export pipeline: India → Djibouti → Ethiopia → OHB Depots → Kiosks → CMDs → Citizens</div>
+      ${['India Pharma Clusters (Jan Aushadhi approved)','HEWA Sky Export License & Quality Cert.','Djibouti Port — DP World Clearing','EPSA Ethiopia Central Depot (Addis)','OroMed Regional Hubs (21 zones)','OroMed Kiosks (health centers)','CMD Motorcycle Distributors','Citizen Direct (WhatsApp order)'].map((s,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${i+1}</div>
+          ${s}
+          ${i<2?`<span class="badge b-gold" style="margin-left:auto;font-size:8.5px">HEWA Sky</span>`:''}
+        </div>
+      `).join('')}
+    </div>
+    <div class="ops-card fadein"><div class="oc-title">📊 Cost Savings by Category</div>
+      <div class="chart-wrap"><canvas id="ch-pharma-cat"></canvas></div>
+    </div>
+  `;
+  setTimeout(()=>makeChart('ch-pharma-cat','doughnut',['Maternal','Infections','NCD','Paediatric','Other'],[{
+    data:[32,28,22,13,5],backgroundColor:['rgba(232,64,80,.7)','rgba(220,38,38,.7)','rgba(201,149,42,.7)','rgba(22,163,74,.6)','rgba(26,122,110,.5)'],borderColor:'var(--panel)',borderWidth:2
+  }],{legend:true,extra:{plugins:{legend:{display:true,position:'right'}}}}),80);
+}
+
+// ============================================================
+// VIEW SWITCHER
+// ============================================================
+function setView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  document.querySelectorAll('.mode-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.mode-pill').forEach(p=>{if(p.onclick?.toString().includes("'"+v+"'"))p.classList.add('active')});
+  if(v==='citizen') renderCitizenContent();
+  else if(v==='ops') renderOpsContent();
+  else if(v==='govt'){ renderGovtContent(); }
+  else if(v==='pharma') renderPharmaContent();
+}
+
+// ============================================================
+// CLOCK + LIVE TICKS
+// ============================================================
+function updateClock(){
+  document.getElementById('hdr-clock').textContent=new Date().toLocaleString('en-ET',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'Africa/Addis_Ababa'})+' EAT';
+}
+
+let orderCount=2847;
+let citizenCount=184000;
+setInterval(()=>{
+  orderCount+=Math.floor(Math.random()*3)+1;
+  citizenCount+=Math.floor(Math.random()*2);
+  const h=document.getElementById('h-orders');
+  const c=document.getElementById('h-citizens');
+  if(h)h.textContent=orderCount.toLocaleString();
+  if(c)c.textContent=(citizenCount/1000).toFixed(0)+'K';
+},5000);
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload=function(){
+  updateClock();
+  setInterval(updateClock,1000);
+  renderCitizenContent();
+};
+</script>
+</body>
+</html>
